@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	_ "modernc.org/sqlite"
 )
@@ -10,13 +11,16 @@ type Storage struct {
 	db *sql.DB
 }
 
-func NewDB(storagePath string) *sql.DB {
+func NewDB(storagePath string) (*sql.DB, error) {
+	//константа для ошибок, для удобства их нахождения
+	const fn = "storage.sqlite.NewDB"
 
 	db, err := sql.Open("sqlite", storagePath)
 	if err != nil {
-		log.Fatalf("Ошибка открытия БД: %v", err)
+		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
 
+	//Подготовка sql запроса для создания таблицы
 	stmt, err := db.Prepare(`
 CREATE TABLE IF NOT EXISTS motivations(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,19 +28,22 @@ CREATE TABLE IF NOT EXISTS motivations(
     author VARCHAR(128) NOT NULL DEFAULT '');
 `)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
-
+	//выполнение sql запроса и создание таблицы
 	_, err = stmt.Exec()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
-	return db
-
-}
-
-func InsertInDb(db *sql.DB) error {
-	stmt, err := db.Prepare(`
+	// Проверяем наличие данных в таблице
+	var count int
+	row := db.QueryRow("SELECT COUNT(*) FROM motivations")
+	if err = row.Scan(&count); err != nil {
+		return nil, fmt.Errorf("%s: %w", fn, err)
+	}
+	// Если таблица пуста, вставляем данные
+	if count == 0 {
+		stmt, err := db.Prepare(`
 INSERT INTO motivations (content,author) VALUES
     ('А если ты не уверен в себе ничего хорошего никогда не получится. Ведь если ты в себя не веришь, кто же поверит?', 'Кто-то умный'),
 	('Без идеи не может быть ничего великого! Без великого не может быть ничего прекрасного.', 'Гюстав Флобер'),
@@ -47,9 +54,17 @@ INSERT INTO motivations (content,author) VALUES
 	('Ваше время ограничено, не тратьте его, живя чужой жизнью', 'Стив Джобс'),
 	('Велики те, кто видит, что миром правят мысли.', 'Ральф Эмерсон');                            
 `)
-	_, err = stmt.Exec()
-	if err != nil {
-		return err
+		_, err = stmt.Exec()
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", fn, err)
+		}
+		log.Println("Data inserted successfully")
+	} else {
+		log.Println("Data already exists.")
 	}
-	return nil
+	return db, nil
+}
+
+func NewStore(db *sql.DB) Storage {
+	return Storage{db: db}
 }

@@ -3,11 +3,15 @@ package main
 import (
 	"github.com/NikCool98/authorization/config"
 	"github.com/NikCool98/authorization/storage"
-	"os"
+	"log"
 )
 
 func main() {
-	db := storage.NewDB(config.StoragePath)
-	storage.InsertInDb(db)
-	os.Exit(1)
+	db, err := storage.NewDB(config.StoragePath)
+	if err != nil {
+		log.Fatalf("Failed to init storage: %v", err)
+	}
+	defer db.Close()
+	store := storage.NewStore(db)
+	_ = store
 }
