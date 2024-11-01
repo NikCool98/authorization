@@ -2,8 +2,10 @@ package main
 
 import (
 	"github.com/NikCool98/authorization/config"
+	"github.com/NikCool98/authorization/handlers"
 	"github.com/NikCool98/authorization/storage"
 	"log"
+	"net/http"
 )
 
 func main() {
@@ -13,5 +15,9 @@ func main() {
 	}
 	defer db.Close()
 	store := storage.NewStore(db)
-	_ = store
+	http.HandleFunc("/", handlers.StartPageHandler(store))
+	err = http.ListenAndServe(":8081", nil)
+	if err != nil {
+		log.Fatalf("Server run error: %v", err)
+	}
 }

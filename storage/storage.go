@@ -68,3 +68,13 @@ INSERT INTO motivations (content,author) VALUES
 func NewStore(db *sql.DB) Storage {
 	return Storage{db: db}
 }
+
+func (s *Storage) GetRandomMotivation() (string, error) {
+	var value string
+	query := `SELECT content FROM motivations ORDER BY RANDOM() LIMIT 1;`
+	err := s.db.QueryRow(query).Scan(&value)
+	if err != nil {
+		return "", fmt.Errorf(`{"error":"не указан id задачи"}`)
+	}
+	return value, nil
+}
